@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+
+backend/venv/
+backend/__pycache__/
+*.pyc
+
+contracts/node_modules/
+contracts/artifacts/
+contracts/cache/
+
+.DS_Store
