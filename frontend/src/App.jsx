@@ -5,6 +5,7 @@ import Onboarding from './pages/Onboarding'
 import Discover from './pages/Discover'
 import Profile from './pages/Profile'
 import Landing from './pages/Landing'
+import Invitations from './pages/Invitations'
 
 function Protected({ children }) {
   const { user, profile, loading } = useAuth()
@@ -29,6 +30,7 @@ export default function App() {
       <Route path="/" element={<Home />} />
       <Route path="/u/:id" element={<Protected><Profile /></Protected>} />
       <Route path="/landing" element={<Landing />} />
+      <Route path="/invitations" element={<Protected><Invitations /></Protected>} />
     </Routes>
     
   )

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import InviteModal from '../components/InviteModal'
 
 const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 
@@ -28,7 +29,24 @@ function ScoreRing({ score }) {
   )
 }
 
-function MatchCard({ m }) {
+// status: none | sent | incoming | connected
+function InterestAction({ status, onInterest }) {
+  const base = 'rounded-full px-5 py-2 text-sm font-semibold focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60'
+  if (status === 'sent')
+    return <button type="button" disabled className={`${base} border border-[#b8f13c]/40 text-[#b8f13c]/80 cursor-default`}>Invitation Sent ✓</button>
+  if (status === 'incoming')
+    return <Link to="/invitations" className={`${base} border border-[#b8f13c] text-[#b8f13c] hover:bg-[#b8f13c]/10`}>💚 Invited you. Respond</Link>
+  if (status === 'connected')
+    return <span className={`${base} border border-[#b8f13c]/40 text-[#b8f13c]`}>🎉 Connected</span>
+  return (
+    <button type="button" onClick={onInterest}
+      className={`${base} bg-[#b8f13c] text-[#0c1f17] transition hover:scale-[1.03] hover:shadow-[0_10px_30px_-10px_rgba(184,241,60,.6)]`}>
+      💚 Show Interest
+    </button>
+  )
+}
+
+function MatchCard({ m, status, onInterest }) {
   const p = m.profile
   const verified = BADGES.filter(([k]) => p[k])
   return (
@@ -60,12 +78,14 @@ function MatchCard({ m }) {
         </ul>
       </div>
 
-      <div className="flex items-center justify-between gap-3 pt-1">
-        <p className="text-xs text-[#f2efe6]/55">
-          {verified.length ? `Verified: ${verified.map(([, l]) => l).join(', ')}` : 'No verification yet'}
-        </p>
+      <p className="text-xs text-[#f2efe6]/55">
+        {verified.length ? `Verified: ${verified.map(([, l]) => l).join(', ')}` : 'No verification yet'}
+      </p>
+
+      <div className="flex flex-wrap items-center gap-3 pt-1">
+        <InterestAction status={status} onInterest={onInterest} />
         <Link to={`/u/${p.id}`}
-          className="rounded-full bg-[#b8f13c] text-[#0c1f17] font-semibold px-5 py-2 text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60">
+          className="rounded-full border border-white/25 px-5 py-2 text-sm hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b8f13c]">
           View profile
         </Link>
       </div>
@@ -77,6 +97,9 @@ export default function Discover() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [state, setState] = useState({ loading: true, error: '', data: null })
+  const [invites, setInvites] = useState({})   // other user id -> none | sent | incoming | connected
+  const [modal, setModal] = useState(null)     // the match being invited
+  const [toast, setToast] = useState('')
 
   async function logout() {
     await supabase.auth.signOut()
@@ -100,7 +123,30 @@ export default function Discover() {
     }
   }
 
-  useEffect(() => { load() }, [user.id])
+  // Row level security only returns invitations that involve me.
+  async function loadInvites() {
+    const { data } = await supabase.from('travel_invitations').select('sender_id, receiver_id, status')
+    const rank = { sent: 1, incoming: 2, connected: 3 }
+    const map = {}
+    const put = (id, s) => { if ((rank[s] || 0) > (rank[map[id]] || 0)) map[id] = s }
+    for (const i of data || []) {
+      const mine = i.sender_id === user.id
+      const other = mine ? i.receiver_id : i.sender_id
+      if (i.status === 'accepted') put(other, 'connected')
+      else if (i.status === 'pending') put(other, mine ? 'sent' : 'incoming')
+      else if (i.status === 'declined' && mine) put(other, 'sent')   // declines stay discreet
+    }
+    setInvites(map)
+  }
+
+  useEffect(() => { load(); loadInvites() }, [user.id])
+
+  function onSent(profile) {
+    setInvites(s => ({ ...s, [profile.id]: 'sent' }))
+    setModal(null)
+    setToast(`Invitation sent to ${profile.display_name}`)
+    setTimeout(() => setToast(''), 4000)
+  }
 
   const { loading, error, data } = state
 
@@ -115,6 +161,7 @@ export default function Discover() {
       <header className="flex items-center justify-between px-6 sm:px-10 pt-6">
         <span className="vs-display text-2xl">VibeTrip</span>
         <div className="flex items-center gap-5 text-sm">
+          <Link to="/invitations" className="text-[#f2efe6]/80 hover:text-[#b8f13c]">Invitations</Link>
           <Link to={`/u/${user.id}`} className="text-[#f2efe6]/80 hover:text-[#b8f13c]">My profile</Link>
           <button type="button" onClick={logout}
             className="rounded-full border border-white/25 px-4 py-1.5 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b8f13c]">
@@ -135,6 +182,8 @@ export default function Discover() {
             <p className="text-[#f2efe6]/70 mt-2">Travelers going where you're going, ranked by vibe.</p>
           )}
         </div>
+
+        {toast && <p role="status" className="rounded-2xl border border-[#b8f13c]/40 bg-[#b8f13c]/10 text-[#b8f13c] px-4 py-3 text-sm">{toast}</p>}
 
         {loading && <p className="text-sm text-white/60">Finding your people...</p>}
 
@@ -160,9 +209,13 @@ export default function Discover() {
         )}
 
         <div className="grid md:grid-cols-2 gap-4">
-          {data?.matches.map(m => <MatchCard key={m.profile.id} m={m} />)}
+          {data?.matches.map(m => (
+            <MatchCard key={m.profile.id} m={m} status={invites[m.profile.id] || 'none'} onInterest={() => setModal(m)} />
+          ))}
         </div>
       </main>
+
+      {modal && <InviteModal match={modal} onClose={() => setModal(null)} onSent={onSent} />}
     </div>
   )
 }
