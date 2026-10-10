@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { INTERESTS, PACE, BUDGET_STYLE, SOCIAL_ENERGY, labelOf, labelsOf } from '../lib/vibeOptions';
 
 const BUCKET = 'story-photos'
 const MAX = 8, MAX_MB = 5

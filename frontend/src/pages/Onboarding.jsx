@@ -88,6 +88,59 @@ function Choice({ active, onClick, label, hint, disabled }) {
   )
 }
 
+// small section header: icon + question + helper text
+function SectionHead({ icon, title, help }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span aria-hidden className="grid place-items-center w-9 h-9 rounded-full bg-white/10 text-lg shrink-0">{icon}</span>
+      <div>
+        <h3 className="text-lg font-semibold leading-tight">{title}</h3>
+        <p className="text-sm text-[#f2efe6]/60">{help}</p>
+      </div>
+    </div>
+  )
+}
+
+// photo card (travel pace)
+function ImageCard({ item, active, onClick }) {
+  const [broken, setBroken] = useState(false)
+  return (
+    <button type="button" onClick={onClick} aria-pressed={active} style={{ background: item.fb }}
+      className={`group relative overflow-hidden rounded-2xl text-left aspect-[4/3] transition-all duration-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-[#b8f13c]/70 ${
+        active ? 'ring-2 ring-[#b8f13c] -translate-y-1 shadow-[0_16px_40px_-12px_rgba(184,241,60,.5)]'
+               : 'ring-1 ring-white/15 hover:-translate-y-1 hover:ring-white/40 hover:shadow-[0_16px_40px_-16px_rgba(255,255,255,.25)]'}`}>
+      {!broken && <img src={item.img} alt="" loading="lazy" onError={() => setBroken(true)}
+        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />}
+      <div className="absolute inset-0" style={{ background: 'linear-gradient(to top,rgba(8,20,16,.92) 10%,rgba(8,20,16,.1) 65%)' }} />
+      <span className={`absolute top-2 right-2 grid place-items-center w-6 h-6 rounded-full text-xs font-bold transition-all duration-300 ${
+        active ? 'bg-[#b8f13c] text-[#0c1f17] scale-100' : 'scale-0'}`}>✓</span>
+      <div className="absolute bottom-0 p-3 flex items-end gap-2">
+        <span className="text-2xl leading-none" aria-hidden>{item.icon}</span>
+        <span>
+          <span className="block text-sm font-semibold leading-tight text-[#f2efe6]">{item.label}</span>
+          <span className="block text-xs leading-snug text-[#f2efe6]/75 mt-0.5">{item.hint}</span>
+        </span>
+      </div>
+    </button>
+  )
+}
+
+// compact emoji card (budget, social energy)
+function OptionCard({ item, active, onClick }) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={active}
+      className={`relative flex flex-col items-center text-center gap-1 rounded-2xl border px-3 py-4 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b8f13c] ${
+        active ? 'border-[#b8f13c] bg-[#b8f13c]/15 -translate-y-0.5 shadow-[0_10px_30px_-12px_rgba(184,241,60,.6)]'
+               : 'border-white/15 bg-white/5 hover:-translate-y-0.5 hover:border-white/40 hover:bg-white/10'}`}>
+      <span className={`absolute top-2 right-2 grid place-items-center w-5 h-5 rounded-full text-[10px] font-bold transition-all duration-300 ${
+        active ? 'bg-[#b8f13c] text-[#0c1f17] scale-100' : 'scale-0'}`}>✓</span>
+      <span className="text-3xl leading-none" aria-hidden>{item.icon}</span>
+      <span className="text-sm font-semibold leading-tight">{item.label}</span>
+      <span className="text-xs leading-snug text-[#f2efe6]/60">{item.hint}</span>
+    </button>
+  )
+}
+
 function Stepper({ step, go }) {
   return (
     <ol className="flex items-start max-w-md mx-auto mb-7">
@@ -157,6 +210,8 @@ export default function Onboarding() {
   const [tags, setTags] = useState([])
   const [priorities, setPriorities] = useState([])
   const [prefs, setPrefs] = useState({})
+    const [otherOn, setOtherOn] = useState(false)
+  const [otherText, setOtherText] = useState('')
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const pick = (k, v) => setForm(f => ({ ...f, [k]: f[k] === v ? '' : v })) // click again to clear
@@ -198,7 +253,8 @@ export default function Onboarding() {
       interests,
       group_size_pref: Number(form.group_size_pref),
       deal_breakers: form.deal_breakers.trim() || null,
-      extras: { favourites: form.favourites.trim(), escapes, priorities, prefs: cleanPrefs },
+      extras: { favourites: form.favourites.trim(), escapes, priorities, prefs: cleanPrefs,
+        other_interests: otherOn ? otherText.trim() : '' },
       visibility: { extras: form.extras_visibility, story: 'public' },
     })
     if (profileError) { setSaving(false); return setError(profileError.message) }
@@ -263,6 +319,8 @@ export default function Onboarding() {
       <main className="relative z-10 px-4 py-8 sm:py-10">
         <div className="max-w-[860px] mx-auto rounded-[2rem] border border-white/15 bg-[#0c1f17]/65 backdrop-blur-xl shadow-[0_30px_80px_-20px_rgba(0,0,0,.7)] p-6 sm:p-12">
           <Stepper step={step} go={go} />
+            <p className="text-xs tracking-[0.2em] text-[#f2efe6]/50 mb-1">STEP {step + 1} OF {STEPS.length}</p>
+          
           <h1 className="vs-display text-3xl sm:text-5xl leading-tight">Find your kind of escape 🍃</h1>
           <p className="text-[#f2efe6]/75 mt-2 mb-8">Mountains, oceans, and people on your wavelength.</p>
 
@@ -301,28 +359,41 @@ export default function Onboarding() {
               <h2 className="vs-display text-2xl">Your travel vibe</h2>
               <p className={hintText}>Takes about a minute. Tap a selected option again to clear it.</p>
 
-              <p className={sub}>How do you like to explore a place?</p>
-              <div className="grid sm:grid-cols-2 gap-2">
-                {PACE.map(o => <Choice key={o.value} label={o.label} hint={o.hint}
-                  active={form.pace === o.value} onClick={() => pick('pace', o.value)} />)}
+                            <div className="space-y-3">
+                <SectionHead icon="🧭" title="How do you like to explore a place?" help="Pick one that feels most like you." />
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {PACE.map(o => <ImageCard key={o.value} item={o}
+                    active={form.pace === o.value} onClick={() => pick('pace', o.value)} />)}
+                </div>
               </div>
 
-              <p className={sub}>What's your usual travel budget style?</p>
-              <div className="grid sm:grid-cols-2 gap-2">
-                {BUDGET_STYLE.map(o => <Choice key={o.value} label={o.label} hint={o.hint}
-                  active={form.budget_style === o.value} onClick={() => pick('budget_style', o.value)} />)}
+              <div className="space-y-3">
+                <SectionHead icon="👛" title="What's your usual travel budget style?" help="This helps match you with travelers who have similar expectations." />
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  {BUDGET_STYLE.map(o => <OptionCard key={o.value} item={o}
+                    active={form.budget_style === o.value} onClick={() => pick('budget_style', o.value)} />)}
+                </div>
               </div>
 
-              <p className={sub}>What kind of company do you enjoy while travelling?</p>
-              <div className="grid sm:grid-cols-2 gap-2">
-                {SOCIAL_ENERGY.map(o => <Choice key={o.value} label={o.label} hint={o.hint}
-                  active={form.social_energy === o.value} onClick={() => pick('social_energy', o.value)} />)}
+              <div className="space-y-3">
+                <SectionHead icon="🫂" title="What kind of company do you enjoy while travelling?" help="Choose what feels right." />
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  {SOCIAL_ENERGY.map(o => <OptionCard key={o.value} item={o}
+                    active={form.social_energy === o.value} onClick={() => pick('social_energy', o.value)} />)}
+                </div>
               </div>
 
-              <p className={sub}>What would you love to do on your trip? <span className="font-normal text-white/50">pick any</span></p>
-              <div className="flex flex-wrap gap-2">
-                {INTERESTS.map(i => <Chip key={i.value} icon={i.icon} active={interests.includes(i.value)}
-                  onClick={() => toggle(interests, setInterests, i.value)}>{i.label}</Chip>)}
+              <div className="space-y-3">
+                <SectionHead icon="⭐" title="What would you love to do on your trip?" help="Select as many as you like." />
+                <div className="flex flex-wrap gap-2">
+                  {INTERESTS.map(i => <Chip key={i.value} icon={i.icon} active={interests.includes(i.value)}
+                    onClick={() => toggle(interests, setInterests, i.value)}>{i.label}</Chip>)}
+                  <Chip icon="➕" active={otherOn} onClick={() => setOtherOn(v => !v)}>Other interests</Chip>
+                </div>
+                {otherOn && (
+                  <input className={plain} maxLength={80} placeholder="e.g. birdwatching, pottery, sunrise yoga"
+                    value={otherText} onChange={e => setOtherText(e.target.value)} />
+                )}
               </div>
 
               {/* ---------- optional panel ---------- */}
