@@ -3,6 +3,10 @@ import TravelStories from '../components/TravelStories'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import {
+  PACE, BUDGET_STYLE, SOCIAL_ENERGY, INTERESTS,
+  PRIORITIES, MAX_PRIORITIES, OPTIONAL_PREFS,
+} from '../lib/vibeOptions'
 
 // ---------- images (remote, with gradient fallbacks) ----------
 const img = (id, w) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=70`
@@ -16,11 +20,8 @@ const ESCAPES = [
   { v: 'city', title: 'City Escapes', desc: 'Culture, food & new stories', src: img('photo-1449824913935-59a10b8d2000', 600), fb: 'linear-gradient(160deg,#3a3f6b,#0a1c33)' },
 ]
 const VIBE_TAGS = [['Spontaneous', '⚡'], ['Budget explorer', '🪙'], ['Slow travel', '🍃'], ['Early-morning treks', '☀️'], ['Night owl', '🌙'], ['Planner', '🗓️']]
-const PACES = [['slow', 'Slow travel'], ['balanced', 'Balanced'], ['packed', 'Packed itinerary'], ['spontaneous', 'Spontaneous']]
-const BUDGETS = [['budget', 'Budget backpacker'], ['comfort', 'Comfort-focused'], ['luxury', 'Luxury'], ['flexible', 'Depends on the trip']]
-const ENERGY = [['quiet', 'Quiet and peaceful'], ['balanced', 'A mix of both'], ['social', 'Very social']]
-const INTERESTS = ['Photography', 'Trekking', 'Reading', 'Music', 'Food hunting', 'Camping', 'Gaming', 'Art', 'Cafe hopping', 'Road trips', 'Beaches', 'Nightlife']
 const STEPS = ['About you', 'Your vibe', 'Your stories', 'Next trip']
+
 // keeps the existing `landscape` column working for matching
 function toLandscape(sel) {
   const m = sel.includes('mountains'), o = sel.includes('ocean')
@@ -69,6 +70,20 @@ function Chip({ active, onClick, icon, children }) {
         active ? 'bg-[#b8f13c] text-[#0c1f17] border-[#b8f13c] font-semibold'
                : 'bg-white/5 text-[#f2efe6]/85 border-white/15 hover:border-[#b8f13c]/60 hover:bg-white/10'}`}>
       {icon && <span aria-hidden>{icon}</span>}{children}
+    </button>
+  )
+}
+
+// option card with a short explanation under the label
+function Choice({ active, onClick, label, hint, disabled }) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={active} disabled={disabled}
+      className={`text-left rounded-xl border px-4 py-3 min-h-[3.5rem] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b8f13c] ${
+        active ? 'bg-[#b8f13c] text-[#0c1f17] border-[#b8f13c]'
+               : 'bg-white/5 text-[#f2efe6]/90 border-white/15 hover:border-[#b8f13c]/60 hover:bg-white/10'
+      } ${disabled ? 'opacity-40 cursor-not-allowed hover:border-white/15 hover:bg-white/5' : ''}`}>
+      <span className="block text-sm font-semibold">{label}</span>
+      {hint && <span className={`block text-xs mt-0.5 ${active ? 'text-[#0c1f17]/75' : 'text-[#f2efe6]/60'}`}>{hint}</span>}
     </button>
   )
 }
@@ -128,6 +143,7 @@ export default function Onboarding() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [bgBroken, setBgBroken] = useState({ l: false, r: false })
+  const [showMore, setShowMore] = useState(false)
 
   const [form, setForm] = useState({
     display_name: '', age: '', home_city: '', bio: '',
@@ -139,10 +155,15 @@ export default function Onboarding() {
   const [escapes, setEscapes] = useState([])
   const [interests, setInterests] = useState([])
   const [tags, setTags] = useState([])
+  const [priorities, setPriorities] = useState([])
+  const [prefs, setPrefs] = useState({})
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const pick = (k, v) => setForm(f => ({ ...f, [k]: f[k] === v ? '' : v })) // click again to clear
   const toggle = (list, setList, item) =>
     setList(list.includes(item) ? list.filter(x => x !== item) : [...list, item])
+  const setPref = (k, v) => setPrefs(p => ({ ...p, [k]: p[k] === v ? undefined : v }))
+  const atMax = priorities.length >= MAX_PRIORITIES
 
   function next() {
     setError('')
@@ -159,6 +180,9 @@ export default function Onboarding() {
       return setError('Add your next trip: a destination and both dates.')
     if (form.end_date < form.start_date) return setError('Your trip end date must be after the start date.')
 
+    // keep only the optional prefs the user actually chose
+    const cleanPrefs = Object.fromEntries(Object.entries(prefs).filter(([, v]) => v))
+
     setSaving(true)
     const { error: profileError } = await supabase.from('profiles').upsert({
       id: user.id,
@@ -174,7 +198,7 @@ export default function Onboarding() {
       interests,
       group_size_pref: Number(form.group_size_pref),
       deal_breakers: form.deal_breakers.trim() || null,
-      extras: { favourites: form.favourites.trim(), escapes },
+      extras: { favourites: form.favourites.trim(), escapes, priorities, prefs: cleanPrefs },
       visibility: { extras: form.extras_visibility, story: 'public' },
     })
     if (profileError) { setSaving(false); return setError(profileError.message) }
@@ -197,6 +221,7 @@ export default function Onboarding() {
   const plain = field.replace('pl-11', 'pl-4')
   const label = 'block text-sm text-[#f2efe6]/65 space-y-1'
   const sub = 'text-sm font-semibold text-[#f2efe6]/85'
+  const hintText = 'text-xs text-[#f2efe6]/55 -mt-3'
 
   return (
     <div className="vs-root relative min-h-screen bg-[#0c1f17] text-[#f2efe6]" style={{ colorScheme: 'dark' }}>
@@ -242,6 +267,7 @@ export default function Onboarding() {
           <p className="text-[#f2efe6]/75 mt-2 mb-8">Mountains, oceans, and people on your wavelength.</p>
 
           <div key={step} className="vs-in space-y-6">
+            {/* ---------- step 0: about you ---------- */}
             {step === 0 && (<>
               <h2 className="vs-display text-2xl">About you</h2>
               <Field icon="👤"><input className={field} placeholder="Display name *" value={form.display_name}
@@ -270,43 +296,91 @@ export default function Onboarding() {
               </div>
             </>)}
 
-            {step === 3 && (<>
-              <h2 className="vs-display text-2xl">Your travel stories</h2>
-              <p className={sub}>Share a memorable travel experience</p>
-              <textarea className={plain} rows="4" placeholder="Describe a moment that made your heart race..."
-                value={form.travel_story} onChange={e => set('travel_story', e.target.value)} />
-            </>)}
-
+            {/* ---------- step 1: your vibe ---------- */}
             {step === 1 && (<>
               <h2 className="vs-display text-2xl">Your travel vibe</h2>
-              <p className={sub}>Travel pace</p>
-              <div className="flex flex-wrap gap-2">{PACES.map(([v, l]) => <Chip key={v} active={form.pace === v} onClick={() => set('pace', v)}>{l}</Chip>)}</div>
-              <p className={sub}>Budget style</p>
-              <div className="flex flex-wrap gap-2">{BUDGETS.map(([v, l]) => <Chip key={v} active={form.budget_style === v} onClick={() => set('budget_style', v)}>{l}</Chip>)}</div>
-              <p className={sub}>Social energy</p>
-              <div className="flex flex-wrap gap-2">{ENERGY.map(([v, l]) => <Chip key={v} active={form.social_energy === v} onClick={() => set('social_energy', v)}>{l}</Chip>)}</div>
-              <p className={sub}>Interests</p>
-              <div className="flex flex-wrap gap-2">{INTERESTS.map(i => <Chip key={i} active={interests.includes(i)} onClick={() => toggle(interests, setInterests, i)}>{i}</Chip>)}</div>
-              <h2 className="vs-display text-2xl pt-2">Your ideal travel companion</h2>
-              <label className={label}>Preferred group size: <span className="text-[#b8f13c] font-semibold">{form.group_size_pref}</span>
-                <input type="range" min="2" max="8" className="w-full accent-[#b8f13c]" value={form.group_size_pref}
-                  onChange={e => set('group_size_pref', e.target.value)} />
-              </label>
-              <input className={plain} placeholder="Deal-breakers (optional)" value={form.deal_breakers} onChange={e => set('deal_breakers', e.target.value)} />
-              <h2 className="vs-display text-2xl pt-2">Beyond travel <span className="text-sm font-normal text-white/50">optional</span></h2>
-              <textarea className={plain} rows="2" placeholder="Favourite books, music, food, movies..."
-                value={form.favourites} onChange={e => set('favourites', e.target.value)} />
-              <label className={label}>Who can see this section?
-                <select className={plain} value={form.extras_visibility} onChange={e => set('extras_visibility', e.target.value)}>
-                  <option value="public">Everyone on VibeTrip</option>
-                  <option value="connections">Accepted connections only</option>
-                  <option value="private">Only me</option>
-                </select>
-              </label>
+              <p className={hintText}>Takes about a minute. Tap a selected option again to clear it.</p>
+
+              <p className={sub}>How do you like to explore a place?</p>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {PACE.map(o => <Choice key={o.value} label={o.label} hint={o.hint}
+                  active={form.pace === o.value} onClick={() => pick('pace', o.value)} />)}
+              </div>
+
+              <p className={sub}>What's your usual travel budget style?</p>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {BUDGET_STYLE.map(o => <Choice key={o.value} label={o.label} hint={o.hint}
+                  active={form.budget_style === o.value} onClick={() => pick('budget_style', o.value)} />)}
+              </div>
+
+              <p className={sub}>What kind of company do you enjoy while travelling?</p>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {SOCIAL_ENERGY.map(o => <Choice key={o.value} label={o.label} hint={o.hint}
+                  active={form.social_energy === o.value} onClick={() => pick('social_energy', o.value)} />)}
+              </div>
+
+              <p className={sub}>What would you love to do on your trip? <span className="font-normal text-white/50">pick any</span></p>
+              <div className="flex flex-wrap gap-2">
+                {INTERESTS.map(i => <Chip key={i.value} icon={i.icon} active={interests.includes(i.value)}
+                  onClick={() => toggle(interests, setInterests, i.value)}>{i.label}</Chip>)}
+              </div>
+
+              {/* ---------- optional panel ---------- */}
+              <button type="button" onClick={() => setShowMore(v => !v)} aria-expanded={showMore}
+                className="w-full flex items-center justify-between rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-left hover:border-[#b8f13c]/60 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b8f13c]">
+                <span>
+                  <span className="block font-semibold">Personalize your matches <span className="text-sm font-normal text-white/50">optional</span></span>
+                  <span className="block text-xs text-[#f2efe6]/60">Companion priorities, stay and transport, group size and more</span>
+                </span>
+                <span aria-hidden className="text-[#b8f13c] text-xl">{showMore ? '−' : '+'}</span>
+              </button>
+
+              {showMore && (
+                <div className="vs-in space-y-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+                  <div className="space-y-3">
+                    <p className={sub}>What matters most in a travel buddy?
+                      <span className="font-normal text-white/50"> choose up to {MAX_PRIORITIES} ({priorities.length} of {MAX_PRIORITIES})</span></p>
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      {PRIORITIES.map(o => <Choice key={o.value} label={o.label} hint={o.hint}
+                        active={priorities.includes(o.value)} disabled={!priorities.includes(o.value) && atMax}
+                        onClick={() => toggle(priorities, setPriorities, o.value)} />)}
+                    </div>
+                  </div>
+
+                  {OPTIONAL_PREFS.map(p => (
+                    <div key={p.key} className="space-y-2">
+                      <p className={sub}>{p.question}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {p.options.map(([v, l]) => <Chip key={v} active={prefs[p.key] === v} onClick={() => setPref(p.key, v)}>{l}</Chip>)}
+                      </div>
+                    </div>
+                  ))}
+
+                  <label className={label}>Preferred group size: <span className="text-[#b8f13c] font-semibold">{form.group_size_pref}</span>
+                    <input type="range" min="2" max="8" className="w-full accent-[#b8f13c]" value={form.group_size_pref}
+                      onChange={e => set('group_size_pref', e.target.value)} />
+                  </label>
+                  <input className={plain} placeholder="Deal-breakers (optional)" value={form.deal_breakers}
+                    onChange={e => set('deal_breakers', e.target.value)} />
+
+                  <h2 className="vs-display text-xl">Beyond travel</h2>
+                  <textarea className={plain} rows="2" placeholder="Favourite books, music, food, movies..."
+                    value={form.favourites} onChange={e => set('favourites', e.target.value)} />
+                  <label className={label}>Who can see this section?
+                    <select className={plain} value={form.extras_visibility} onChange={e => set('extras_visibility', e.target.value)}>
+                      <option value="public">Everyone on VibeTrip</option>
+                      <option value="connections">Accepted connections only</option>
+                      <option value="private">Only me</option>
+                    </select>
+                  </label>
+                </div>
+              )}
             </>)}
 
+            {/* ---------- step 2: stories ---------- */}
             {step === 2 && <TravelStories user={user} />}
 
+            {/* ---------- step 3: next trip ---------- */}
             {step === 3 && (<>
               <h2 className="vs-display text-2xl">Your next trip</h2>
               <p className="text-sm text-[#f2efe6]/65 -mt-3">Required. This is how we find people who can actually travel with you.</p>
