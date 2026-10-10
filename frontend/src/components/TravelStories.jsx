@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { INTERESTS, labelsOf } from '../lib/vibeOptions'
 
 const BUCKET = 'story-photos'
 const MAX = 8, MAX_MB = 5
 const TYPES = ['image/jpeg', 'image/png', 'image/webp']
-const TAGS = ['Photography', 'Trekking', 'Camping', 'Food hunting', 'Beaches', 'Road trips', 'Cafe hopping', 'Nightlife']
 const BANNER = 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1200&q=70'
 const field = 'w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-[#f2efe6] placeholder-[#f2efe6]/45 focus:outline-none focus:border-[#b8f13c] focus:ring-2 focus:ring-[#b8f13c]/30'
 const btn = 'rounded-full px-4 py-1.5 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b8f13c]'
@@ -99,7 +99,7 @@ export default function TravelStories({ user }) {
   }
 
   const draftSet = (s, k, v) => patch(s.id, { draft: { ...s.draft, [k]: v } })
-  const toggleTag = (s, t) => draftSet(s, 'tags', s.draft.tags.includes(t) ? s.draft.tags.filter(x => x !== t) : [...s.draft.tags, t])
+  const toggleTag = (s, code) => draftSet(s, 'tags', s.draft.tags.includes(code) ? s.draft.tags.filter(x => x !== code) : [...s.draft.tags, code])
 
   return (
     <div className="space-y-6">
@@ -162,9 +162,11 @@ export default function TravelStories({ user }) {
                 </div>
                 <textarea className={field} rows="2" maxLength={240} placeholder="What made this place special?" value={s.draft.description || ''} onChange={e => draftSet(s, 'description', e.target.value)} />
                 <div className="flex flex-wrap gap-1.5">
-                  {TAGS.map(t => (
-                    <button key={t} type="button" aria-pressed={s.draft.tags.includes(t)} onClick={() => toggleTag(s, t)}
-                      className={`${btn} text-xs border ${s.draft.tags.includes(t) ? 'bg-[#b8f13c] text-[#0c1f17] border-[#b8f13c]' : 'border-white/20 text-white/75 hover:border-[#b8f13c]/60'}`}>{t}</button>
+                  {INTERESTS.map(t => (
+                    <button key={t.value} type="button" aria-pressed={s.draft.tags.includes(t.value)} onClick={() => toggleTag(s, t.value)}
+                      className={`${btn} text-xs border ${s.draft.tags.includes(t.value) ? 'bg-[#b8f13c] text-[#0c1f17] border-[#b8f13c]' : 'border-white/20 text-white/75 hover:border-[#b8f13c]/60'}`}>
+                      <span aria-hidden>{t.icon}</span> {t.label}
+                    </button>
                   ))}
                 </div>
                 <div className="flex gap-2 pt-1">
@@ -177,7 +179,7 @@ export default function TravelStories({ user }) {
                 <h3 className="vs-display text-lg leading-tight">{s.title}</h3>
                 <p className="text-xs text-[#f2efe6]/60">{[s.location, s.travel_date].filter(Boolean).join(' · ') || 'Add a location and date'}</p>
                 {s.description && <p className="text-sm text-[#f2efe6]/80">{s.description}</p>}
-                {!!s.tags.length && <p className="text-xs text-[#b8f13c]">{s.tags.join(', ')}</p>}
+                {!!s.tags.length && <p className="text-xs text-[#b8f13c]">{labelsOf(INTERESTS, s.tags).join(', ')}</p>}
                 <div className="flex gap-2 pt-2">
                   <button type="button" onClick={() => patch(s.id, { editing: true, draft: { ...s, tags: [...s.tags] } })} className={`${btn} border border-white/25 hover:bg-white/10`}>Edit</button>
                   <button type="button" onClick={() => removeStory(s)} className={`${btn} border border-red-400/40 text-red-200 hover:bg-red-500/10`}>Delete</button>
