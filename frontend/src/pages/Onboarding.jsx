@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import TravelStories from '../components/TravelStories'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -19,8 +20,7 @@ const PACES = [['slow', 'Slow travel'], ['balanced', 'Balanced'], ['packed', 'Pa
 const BUDGETS = [['budget', 'Budget backpacker'], ['comfort', 'Comfort-focused'], ['luxury', 'Luxury'], ['flexible', 'Depends on the trip']]
 const ENERGY = [['quiet', 'Quiet and peaceful'], ['balanced', 'A mix of both'], ['social', 'Very social']]
 const INTERESTS = ['Photography', 'Trekking', 'Reading', 'Music', 'Food hunting', 'Camping', 'Gaming', 'Art', 'Cafe hopping', 'Road trips', 'Beaches', 'Nightlife']
-const STEPS = ['About you', 'Your vibe', 'Next trip']
-
+const STEPS = ['About you', 'Your vibe', 'Your stories', 'Next trip']
 // keeps the existing `landscape` column working for matching
 function toLandscape(sel) {
   const m = sel.includes('mountains'), o = sel.includes('ocean')
@@ -270,6 +270,13 @@ export default function Onboarding() {
               </div>
             </>)}
 
+            {step === 3 && (<>
+              <h2 className="vs-display text-2xl">Your travel stories</h2>
+              <p className={sub}>Share a memorable travel experience</p>
+              <textarea className={plain} rows="4" placeholder="Describe a moment that made your heart race..."
+                value={form.travel_story} onChange={e => set('travel_story', e.target.value)} />
+            </>)}
+
             {step === 1 && (<>
               <h2 className="vs-display text-2xl">Your travel vibe</h2>
               <p className={sub}>Travel pace</p>
@@ -298,7 +305,9 @@ export default function Onboarding() {
               </label>
             </>)}
 
-            {step === 2 && (<>
+            {step === 2 && <TravelStories user={user} />}
+
+            {step === 3 && (<>
               <h2 className="vs-display text-2xl">Your next trip</h2>
               <p className="text-sm text-[#f2efe6]/65 -mt-3">Required. This is how we find people who can actually travel with you.</p>
               <Field icon="📍"><input className={field} placeholder="Destination, e.g. Munnar *" value={form.destination}
@@ -319,7 +328,7 @@ export default function Onboarding() {
               <button type="button" onClick={() => go(step - 1)}
                 className="rounded-full border border-white/25 px-6 py-3 hover:bg-white/10 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b8f13c]">Back</button>
             )}
-            {step < 2 ? (
+            {step < 3 ? (
               <button type="button" onClick={next}
                 className="flex-1 rounded-full bg-[#b8f13c] text-[#0c1f17] font-semibold py-3.5 hover:scale-[1.01] hover:shadow-[0_14px_40px_-10px_rgba(184,241,60,.6)] transition focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60">Continue</button>
             ) : (

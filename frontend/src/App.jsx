@@ -3,6 +3,7 @@ import { useAuth } from './context/AuthContext'
 import Login from './pages/Login'
 import Onboarding from './pages/Onboarding'
 import Discover from './pages/Discover'
+import Profile from './pages/Profile'
 
 function Protected({ children }) {
   const { user, profile, loading } = useAuth()
@@ -20,6 +21,8 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/onboarding" element={user ? <Onboarding /> : <Navigate to="/login" />} />
       <Route path="/" element={<Protected><Discover /></Protected>} />
+      <Route path="/u/:id" element={<Protected><Profile /></Protected>} />
     </Routes>
+    
   )
 }
