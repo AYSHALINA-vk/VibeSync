@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
@@ -64,15 +64,10 @@ function MatchCard({ m }) {
         <p className="text-xs text-[#f2efe6]/55">
           {verified.length ? `Verified: ${verified.map(([, l]) => l).join(', ')}` : 'No verification yet'}
         </p>
-        <div className="flex items-center gap-5 text-sm">
-          <Link to={`/u/${user.id}`} className="text-[#f2efe6]/80 hover:text-[#b8f13c]">My profile</Link>
-          <button type="button" onClick={logout}
-            className="rounded-full border border-white/25 px-4 py-1.5 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b8f13c]">
-            Log out
-          </button>
-        </div>
-        
-        
+        <Link to={`/u/${p.id}`}
+          className="rounded-full bg-[#b8f13c] text-[#0c1f17] font-semibold px-5 py-2 text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60">
+          View profile
+        </Link>
       </div>
     </article>
   )
@@ -80,7 +75,13 @@ function MatchCard({ m }) {
 
 export default function Discover() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [state, setState] = useState({ loading: true, error: '', data: null })
+
+  async function logout() {
+    await supabase.auth.signOut()
+    navigate('/login')
+  }
 
   async function load() {
     setState({ loading: true, error: '', data: null })
@@ -98,11 +99,6 @@ export default function Discover() {
         error: offline ? 'Cannot reach the matching server. Is uvicorn running on port 8000?' : e.message })
     }
   }
-    const navigate = useNavigate()
-  async function logout() {
-    await supabase.auth.signOut()
-    navigate('/login')
-  }
 
   useEffect(() => { load() }, [user.id])
 
@@ -118,7 +114,13 @@ export default function Discover() {
 
       <header className="flex items-center justify-between px-6 sm:px-10 pt-6">
         <span className="vs-display text-2xl">VibeTrip</span>
-        <Link to={`/u/${user.id}`} className="text-sm text-[#f2efe6]/80 hover:text-[#b8f13c]">My profile</Link>
+        <div className="flex items-center gap-5 text-sm">
+          <Link to={`/u/${user.id}`} className="text-[#f2efe6]/80 hover:text-[#b8f13c]">My profile</Link>
+          <button type="button" onClick={logout}
+            className="rounded-full border border-white/25 px-4 py-1.5 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b8f13c]">
+            Log out
+          </button>
+        </div>
       </header>
 
       <main className="max-w-[1000px] mx-auto px-4 py-8 sm:py-10 space-y-6">
